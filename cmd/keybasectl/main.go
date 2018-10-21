@@ -81,8 +81,8 @@ func main() {
 	var exitVal = 0
 	var errl, errpkl error
 	var kbFl keybase.DebugFlag
-	var uf []string  // captures the users found
-	var unf []string // captures the users not found
+	var uf, unf []string // captures the users found and not found
+	var kf, knf []string // captures the user's pubkey found and not found
 
 	if !flag.Parsed() {
 
@@ -145,21 +145,27 @@ func main() {
 	}
 
 	// step: lookup user's pubkey against keybase
-	errpkl = keybase.PubKeyLookup(usfL.value)
+	kf, knf, errpkl = keybase.PubKeyLookup(usfL.value)
 	if errpkl != nil {
 
 		exitVal++
 		if _, ok := errpkl.(keybase.ErrorPKNotFound); ok {
 
-			fmt.Fprintf(os.Stdout, "error during keybase public key lookup: %s\n", errpkl.Error())
+			if len(kf) > 0 {
+
+				fmt.Fprintf(os.Stdout, "user(s): %v public key found during keybase public key lookup\n", kf)
+			}
+			fmt.Fprintf(os.Stdout, "user(s): %v public key not found during keybase public key lookup\n", knf)
 			log.ErrorLog.Printf("error during keybase public key lookup: %s", errpkl.Error())
+			goto exitAll
 		} else {
 
 			fmt.Fprintf(os.Stdout, "error : %s\n", errpkl.Error())
 			log.ErrorLog.Printf("error : %s", errpkl.Error())
+			goto exitAll
 		}
 	} else {
-		fmt.Fprintf(os.Stdout, "user: %s public key found\n", usfL.value)
+		fmt.Fprintf(os.Stdout, "user(s): %v public key found during keybase public key lookup\n", kf)
 
 	}
 

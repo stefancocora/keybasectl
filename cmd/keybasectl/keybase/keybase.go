@@ -204,45 +204,49 @@ func lookupUser(username []string) ([]string, []string, error) {
 }
 
 // PubKeyLookup is used to lookup pubkeys using the keybase API
-func PubKeyLookup(username []string) error {
+func PubKeyLookup(username []string) ([]string, []string, error) {
 
-	log.DebugLog.Printf("lookup username's pubkey: %s", username)
+	log.DebugLog.Printf("lookup pubkey for username(s): %v", username)
+	var kf, knf []string
 
 	// step: lookup username's pubkey
-	errl := lookupPubKey(username)
+	kf, knf, errl := lookupPubKey(username)
 	if errl != nil {
 
 		if pknfe, ok := errl.(ErrorPKNotFound); ok {
 
 			log.DebugLog.Printf("received a ErrorPKNotFound error: %v", pknfe)
 		}
-		return errl
+		return kf, knf, errl
 	}
 
-	return nil
+	return kf, knf, nil
 }
 
 // lookupPubKey uses the keybase API to lookup the given user's pubkey
-func lookupPubKey(username []string) error {
+func lookupPubKey(username []string) ([]string, []string, error) {
 
 	var pubKeyResponse struct {
 		Status *Status `json:"status"`
 		Key    []*Key  `json:"them"`
 	}
+	var empty, pubKeyFound, pubKeyNotFound []string
 
-	url := fmt.Sprintf("%s%s&fields=public_keys", keybaseUserLookupURL, username)
+	uname := strings.Join(username, ",")
+
+	url := fmt.Sprintf("%s%s&fields=public_keys", keybaseUserLookupURL, uname)
 	log.DebugLog.Printf("targeting keybase API url: %s", url)
 	res, errlu := http.Get(url)
 	if errlu != nil {
 
-		return errlu
+		return empty, empty, errlu
 	}
 
 	respb, errRA := ioutil.ReadAll(res.Body)
 	// log.DebugLog.Printf("response body: %s", respb)
 	if errRA != nil {
 
-		return errRA
+		return empty, empty, errRA
 	}
 
 	defer res.Body.Close()
@@ -250,14 +254,15 @@ func lookupPubKey(username []string) error {
 
 	if errDec != nil {
 
-		return errDec
+		return empty, empty, errDec
 	}
 
 	for u := range pubKeyResponse.Key {
 
 		if pubKeyResponse.Key[u] != nil {
 
-			log.DebugLog.Printf("public key for user %s found", username)
+			log.DebugLog.Printf("public key for user %s found", username[u])
+			pubKeyFound = append(pubKeyFound, username[u])
 			// log.DebugLog.Printf("unmarshalled resp user: %v", pubKeyResponse.Key[u].Basics.Username)
 			// log.DebugLog.Printf("unmarshalled resp salt: %v", pubKeyResponse.Key[u].Basics.Salt)
 			// log.DebugLog.Printf("unmarshalled resp track_version: %v", pubKeyResponse.Key[u].Basics.TrackVersion)
@@ -266,11 +271,19 @@ func lookupPubKey(username []string) error {
 
 			msg := fmt.Sprintf("public key for user %s not found", username)
 			log.DebugLog.Printf(msg)
-			var eunf ErrorPKNotFound
-			eunf.errmsg = msg
-			return eunf
+			pubKeyNotFound = append(pubKeyNotFound, username[u])
 		}
 	}
 
-	return nil
+	if len(pubKeyNotFound) == 0 {
+
+		return pubKeyFound, empty, nil
+	} else {
+
+		msg := fmt.Sprintf("public key for user(s) %v not found", pubKeyNotFound)
+		var eunf ErrorPKNotFound
+		eunf.errmsg = msg
+		return pubKeyFound, pubKeyNotFound, eunf
+	}
+
 }
