@@ -37,41 +37,42 @@ func (us *userFlag) String() string {
 
 var usfL userFlag
 var usEnv = "KEYBASECTL_USER"
-var usUsage = fmt.Sprintf("User to lookup. Alternatively sourced from %s [required]", usEnv)
+var usUsage = fmt.Sprintf("Comma separated list of user(s) to lookup. Alternatively sourced from %s <required>", usEnv)
 var usName = "user"
 
 //---
 
 // apiEndpointFlag is the struct that get populated when the --api cli flag is provided
 // this switches the keybase endpoint to either their prod or staging API endpoints
-type apiEndpointFlag struct {
-	set   bool
-	value string
-}
+// Disabled for now since the staging URL from the keybase client doesn't DNS resolve
+// type apiEndpointFlag struct {
+// 	set   bool
+// 	value string
+// }
 
-func (us *apiEndpointFlag) Set(val string) error {
+// func (us *apiEndpointFlag) Set(val string) error {
 
-	us.value = val
-	us.set = true
-	return nil
-}
+// 	us.value = val
+// 	us.set = true
+// 	return nil
+// }
 
-func (us *apiEndpointFlag) String() string {
+// func (us *apiEndpointFlag) String() string {
 
-	return us.value
-}
+// 	return us.value
+// }
 
-var apifL apiEndpointFlag
-var apiEnv = "KEYBASECTL_API_ENDPOINT"
-var apiUsage = fmt.Sprintf("Keybase API endpoint to target. Alternatively sourced from %s. Default to [production]. Disabled for now since the staging URL from the keybase client doesn't DNS resolve", apiEnv)
-var apiName = "api"
+// var apifL apiEndpointFlag
+// var apiEnv = "KEYBASECTL_API_ENDPOINT"
+// var apiUsage = fmt.Sprintf("Keybase API endpoint to target. Default to [production]. Alternatively sourced from %s. Disabled for now since the staging URL from the keybase client doesn't DNS resolve", apiEnv)
+// var apiName = "api"
 
 //---
 
 func init() {
 
-	flag.BoolVar(&debug, "debug", false, "turn on or off debugging")
-	flag.Var(&apifL, apiName, apiUsage)
+	flag.BoolVar(&debug, "debug", false, "turn on debugging")
+	// flag.Var(&apifL, apiName, apiUsage)
 	flag.Var(&usfL, usName, usUsage)
 
 }
