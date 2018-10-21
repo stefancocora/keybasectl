@@ -21,6 +21,17 @@ func (unf ErrorUserNotFound) Error() string {
 	return unf.errmsg
 }
 
+// ErrorPKNotFound is the error returned when the user's public key isn't found
+type ErrorPKNotFound struct {
+	err    error
+	errmsg string
+}
+
+// Error implements the error interface for a type of ErrorPKNotFound
+func (pknf ErrorPKNotFound) Error() string {
+	return pknf.errmsg
+}
+
 var kbdebug bool
 
 var keybaseUserLookupURL = "https://keybase.io/_/api/1.0/user/lookup.json?usernames="
@@ -74,6 +85,26 @@ type Basics struct {
 	Salt string `json:"salt"`
 }
 
+// A KeyType is used to denote whether a key is public or private.
+type KeyType int
+
+// These constants provide friendly names for the key types returned by
+// the API.
+const (
+	PublicKey  KeyType = 1
+	PrivateKey KeyType = 2
+)
+
+// A Key contains information about a public or private key.
+type Key struct {
+	KeyID       string  `json:"kid"`
+	Fingerprint string  `json:"key_fingerprint"`
+	KeyType     KeyType `json:"key_type"`
+	// Bundle      string  `json:"bundle"`
+	// Modified    int     `json:"mtime"`
+	// Created     int     `json:"ctime"`
+}
+
 func init() {
 
 	// logging setup
@@ -85,8 +116,8 @@ func init() {
 
 }
 
-// Lookup is used to lookup users and pubkeys using the keybase API
-func Lookup(username string) error {
+// UserLookup is used to lookup users using the keybase API
+func UserLookup(username string) error {
 
 	log.DebugLog.Printf("lookup username: %s", username)
 
@@ -121,7 +152,7 @@ func lookupUser(username string) error {
 	}
 
 	respb, errRA := ioutil.ReadAll(res.Body)
-	log.DebugLog.Printf("response body: %s", respb)
+	// log.DebugLog.Printf("response body: %s", respb)
 	if errRA != nil {
 
 		return errRA
@@ -149,6 +180,78 @@ func lookupUser(username string) error {
 			msg := fmt.Sprintf("user %s not found", username)
 			log.DebugLog.Printf(msg)
 			var eunf ErrorUserNotFound
+			eunf.errmsg = msg
+			return eunf
+		}
+	}
+
+	return nil
+}
+
+// PubKeyLookup is used to lookup pubkeys using the keybase API
+func PubKeyLookup(username string) error {
+
+	log.DebugLog.Printf("lookup username's pubkey: %s", username)
+
+	// step: lookup username's pubkey
+	errl := lookupPubKey(username)
+	if errl != nil {
+
+		if pknfe, ok := errl.(ErrorPKNotFound); ok {
+
+			log.DebugLog.Printf("received a ErrorPKNotFound error: %v", pknfe)
+		}
+		return errl
+	}
+
+	return nil
+}
+
+// lookupPubKey uses the keybase API to lookup the given user's pubkey
+func lookupPubKey(username string) error {
+
+	var pubKeyResponse struct {
+		Status *Status `json:"status"`
+		Key    []*Key  `json:"them"`
+	}
+
+	url := fmt.Sprintf("%s%s&fields=public_keys", keybaseUserLookupURL, username)
+	log.DebugLog.Printf("targeting keybase API url: %s", url)
+	res, errlu := http.Get(url)
+	if errlu != nil {
+
+		return errlu
+	}
+
+	respb, errRA := ioutil.ReadAll(res.Body)
+	// log.DebugLog.Printf("response body: %s", respb)
+	if errRA != nil {
+
+		return errRA
+	}
+
+	defer res.Body.Close()
+	errDec := json.Unmarshal(respb, &pubKeyResponse)
+
+	if errDec != nil {
+
+		return errDec
+	}
+
+	for u := range pubKeyResponse.Key {
+
+		if pubKeyResponse.Key[u] != nil {
+
+			log.DebugLog.Printf("public key for user %s found", username)
+			// log.DebugLog.Printf("unmarshalled resp user: %v", pubKeyResponse.Key[u].Basics.Username)
+			// log.DebugLog.Printf("unmarshalled resp salt: %v", pubKeyResponse.Key[u].Basics.Salt)
+			// log.DebugLog.Printf("unmarshalled resp track_version: %v", pubKeyResponse.Key[u].Basics.TrackVersion)
+
+		} else {
+
+			msg := fmt.Sprintf("public key for user %s not found", username)
+			log.DebugLog.Printf(msg)
+			var eunf ErrorPKNotFound
 			eunf.errmsg = msg
 			return eunf
 		}

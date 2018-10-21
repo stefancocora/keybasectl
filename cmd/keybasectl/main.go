@@ -88,7 +88,7 @@ func main() {
 	if debug {
 		log.LoggingInit(os.Stdout, "short", os.Stderr, "short", os.Stderr, "short")
 	} else {
-		log.LoggingInit(ioutil.Discard, "short", os.Stderr, "short", ioutil.Discard, "short")
+		log.LoggingInit(ioutil.Discard, "short", ioutil.Discard, "short", ioutil.Discard, "short")
 	}
 
 	log.InfoLog.Println("starting engines")
@@ -110,12 +110,12 @@ func main() {
 		exitVal++
 	}
 
-	// step: lookup user against keybase
 	kbFl := new(keybase.DebugFlag)
 	kbFl.NewDebugFlag(debug)
 	log.DebugLog.Printf("current setting for the debug flag inside the keybase pkg: %v", kbFl.DebugSetting())
 
-	errl := keybase.Lookup(usfL.value)
+	// step: lookup user against keybase
+	errl := keybase.UserLookup(usfL.value)
 	if errl != nil {
 
 		exitVal++
@@ -128,6 +128,27 @@ func main() {
 			fmt.Fprintf(os.Stdout, "error : %s\n", errl.Error())
 			log.ErrorLog.Printf("error : %s", errl.Error())
 		}
+	} else {
+		fmt.Fprintf(os.Stdout, "user: %s found\n", usfL.value)
+	}
+
+	// step: lookup user's pubkey against keybase
+	errpkl := keybase.PubKeyLookup(usfL.value)
+	if errpkl != nil {
+
+		exitVal++
+		if _, ok := errpkl.(keybase.ErrorPKNotFound); ok {
+
+			fmt.Fprintf(os.Stdout, "error during keybase public key lookup: %s\n", errpkl.Error())
+			log.ErrorLog.Printf("error during keybase public key lookup: %s", errpkl.Error())
+		} else {
+
+			fmt.Fprintf(os.Stdout, "error : %s\n", errpkl.Error())
+			log.ErrorLog.Printf("error : %s", errpkl.Error())
+		}
+	} else {
+		fmt.Fprintf(os.Stdout, "user: %s public key found\n", usfL.value)
+
 	}
 
 	log.InfoLog.Println("stopping engines, we're done")
