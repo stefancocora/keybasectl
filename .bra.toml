@@ -1,0 +1,44 @@
+[run]
+init_cmds = [
+	["bin/go/keybasectl-dev-v0.0.1-24eb9ed+UNCOMMITEDCHANGES", "-h"]
+	# ["go", "test", "-v", "github.com/stefancocora/vaultguard/internal/log"]
+	# ["go", "test", "-v", "github.com/stefancocora/vaultguard/internal/log", "-run=TestSetOut"]
+	# ["make"]
+]									                            # Commands run in start
+watch_all = true					                    # Watch all sub-directories
+watch_dirs = [
+  "$WORKDIR",
+]						                                  # Directories to watch
+
+watch_exts = [
+  ".go",
+  ".yml",
+  ".yaml",
+  ".toml",
+  ".sh",
+  ".mk",
+  "Makefile"
+]				# Extensions to watch
+# watch_exts = [".yml", ".rb", ".toml", "Rakefile"]				# Extensions to watch
+ignore = [
+  ".git",
+  "tmp",
+  "tfmodules",
+  ".vendor",
+  "vendor",
+  ".bundle",
+  "_garbage",
+  ] 	                                        # Directories to exclude from watching
+ignore_files = [
+  "\\.#.*",
+]					                    # Regexps for ignoring specific notifies
+build_delay = 3000					                  # Minimal interval to Trigger build event
+interrupt_timout = 5				                  # Time to wait until force kill
+cmds = [
+	["bin/go/keybasectl-dev-v0.0.1-24eb9ed+UNCOMMITEDCHANGES", "-h"]
+	# ["go", "test", "-v", "github.com/stefancocora/vaultguard/internal/log"]
+	# ["go", "test", "-v", "github.com/stefancocora/vaultguard/internal/log", "-run=TestSetOut"]
+	# ["make"]
+]									                            # Commands to run
+
+[sync]
