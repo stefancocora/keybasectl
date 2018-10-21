@@ -69,6 +69,23 @@ else
 	timeout --preserve-status $(BUILD_TIMEOUT) util/build.sh build $(ELF_NAME) $(ELF_BUILD_ENV) $(ELF_APPENVIRONMENT) $(ELF_VERSION) $(OUTPUT_DIR) $(DEBUG) $(BUILD_ACTION)
 endif
 
+.PHONY: build_production
+build_production:			## Build the artifact using system go
+ifeq ($(DEBUG),true)
+	$(info elf appenvironment: $(ELF_APPENVIRONMENT))
+	$(info elf version: $(ELF_VERSION))
+	$(info debug: $(DEBUG))
+endif
+
+	@echo "--> Building ELF ..."
+ifeq ($(OS),alpine)
+	$(info detected OS: $(OS))
+	timeout -t $(BUILD_TIMEOUT) util/build.sh build $(ELF_NAME) $(ELF_BUILD_ENV) $(ELF_APPENVIRONMENT) $(ELF_VERSION) $(OUTPUT_DIR) $(DEBUG) $(BUILD_ACTION)
+else
+	$(info detected OS: $(OS))
+	timeout --preserve-status $(BUILD_TIMEOUT) util/build.sh build $(ELF_NAME) $(ELF_BUILD_ENV) $(ELF_APPENVIRONMENT) $(ELF_VERSION) $(OUTPUT_DIR) $(DEBUG) $(BUILD_ACTION)
+endif
+
 .PHONY: deps
 deps:					## Update the package dependencies
 	go get -u github.com/golang/dep/cmd/dep
