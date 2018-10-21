@@ -119,7 +119,15 @@ func main() {
 	if errl != nil {
 
 		exitVal++
-		log.ErrorLog.Print(errl)
+		if _, ok := errl.(keybase.ErrorUserNotFound); ok {
+
+			fmt.Fprintf(os.Stdout, "error during keybase user lookup: %s\n", errl.Error())
+			log.ErrorLog.Printf("error during keybase user lookup: %s", errl.Error())
+		} else {
+
+			fmt.Fprintf(os.Stdout, "error : %s\n", errl.Error())
+			log.ErrorLog.Printf("error : %s", errl.Error())
+		}
 	}
 
 	log.InfoLog.Println("stopping engines, we're done")
