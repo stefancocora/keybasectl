@@ -26,6 +26,12 @@ ELF_VERSION ?= v0.0.1
 OS = $(shell grep "^ID=" /etc/os-release | cut -d"=" -f2 )
 BUILD_TIMEOUT = 120 # seconds
 DEP_GRAPH_PATH := tmp/$(ELF_NAME)-$(strip $(ELF_VERSION)).deps.png
+CONTAINER_IMAGENAME = 'stefancocora/$(ELF_NAME)'
+CONTAINER_VERSION = $(ELF_VERSION)
+CONTAINER_NAME := '$(ELF_NAME)'
+CONTAINER_NOCACHE := 'nocache'
+container_iterateimage : CONTAINER_NOCACHE = 'withcache'
+CONTAINER_BUILD_ACTION := 'build'
 
 # possible values: local/localRkt/localDocker/concourseCI
 # each of those values tells the build script how to behave if inside/outside a build container
@@ -85,6 +91,30 @@ else
 	$(info detected OS: $(OS))
 	timeout --preserve-status $(BUILD_TIMEOUT) util/build.sh build $(ELF_NAME) $(ELF_BUILD_ENV) $(ELF_APPENVIRONMENT) $(ELF_VERSION) $(OUTPUT_DIR) $(DEBUG) $(BUILD_ACTION)
 endif
+
+.PHONY: container_image
+container_image:			## container:docker: Build a container image without using docker cache
+	@echo "--> Building container image without caches..."
+ifeq ($(DEBUG),true)
+	$(info version: $(CONTAINER_BUILD_ACTION))
+	$(info version: $(CONTAINER_VERSION))
+	$(info nocache: $(CONTAINER_NOCACHE))
+	$(info imagename: $(CONTAINER_IMAGENAME))
+	$(info debug: $(DEBUG))
+endif
+	timeout --preserve-status 120s util/buildcontainer.sh $(CONTAINER_BUILD_ACTION) $(CONTAINER_VERSION) $(CONTAINER_NOCACHE) $(CONTAINER_IMAGENAME) $(DEBUG)
+
+.PHONY: container_iterateimage
+container_iterateimage:			## container:docker: Build a container image using docker cache
+	@echo "--> Building container image ..."
+ifeq ($(DEBUG),true)
+	$(info containerbuildaction: $(CONTAINER_BUILD_ACTION))
+	$(info version: $(CONTAINER_VERSION))
+	$(info nocache: $(CONTAINER_NOCACHE))
+	$(info imagename: $(CONTAINER_IMAGENAME))
+	$(info debug: $(DEBUG))
+endif
+	timeout --preserve-status 120s util/buildcontainer.sh $(CONTAINER_BUILD_ACTION) $(CONTAINER_VERSION) $(CONTAINER_NOCACHE) $(CONTAINER_IMAGENAME) $(DEBUG)
 
 .PHONY: deps
 deps:					## Update the package dependencies
