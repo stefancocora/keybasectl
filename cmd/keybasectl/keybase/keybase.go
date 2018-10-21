@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 
 	log "github.com/stefancocora/keybasectl/internal/log"
 )
@@ -117,45 +118,51 @@ func init() {
 }
 
 // UserLookup is used to lookup users using the keybase API
-func UserLookup(username string) error {
+func UserLookup(username []string) ([]string, []string, error) {
 
-	log.DebugLog.Printf("lookup username: %s", username)
+	log.DebugLog.Printf("lookup username(s): %v", username)
+	var uf, unf []string
 
 	// step: lookup username
-	errl := lookupUser(username)
+	uf, unf, errl := lookupUser(username)
 	if errl != nil {
 
 		if unfe, ok := errl.(ErrorUserNotFound); ok {
 
 			log.DebugLog.Printf("received a ErrorUserNotFound error: %v", unfe)
 		}
-		return errl
+		return uf, unf, errl
 	}
 
-	return nil
+	return uf, unf, nil
 }
 
 // lookupUser uses the keybase API to lookup the given user
-func lookupUser(username string) error {
+func lookupUser(username []string) ([]string, []string, error) {
 
 	var userResponse struct {
 		Status *Status `json:"status"`
 		User   []*User `json:"them"`
 	}
+	var empty []string
+	var userFound []string
+	var userNotFound []string
 
-	url := fmt.Sprintf("%s%s&fields=basics", keybaseUserLookupURL, username)
+	uname := strings.Join(username, ",")
+
+	url := fmt.Sprintf("%s%s&fields=basics", keybaseUserLookupURL, uname)
 	log.DebugLog.Printf("targeting keybase API url: %s", url)
 	res, errlu := http.Get(url)
 	if errlu != nil {
 
-		return errlu
+		return empty, empty, errlu
 	}
 
 	respb, errRA := ioutil.ReadAll(res.Body)
-	// log.DebugLog.Printf("response body: %s", respb)
+	log.DebugLog.Printf("response body: %s", respb)
 	if errRA != nil {
 
-		return errRA
+		return empty, empty, errRA
 	}
 
 	defer res.Body.Close()
@@ -163,33 +170,41 @@ func lookupUser(username string) error {
 
 	if errDec != nil {
 
-		return errDec
+		return empty, empty, errDec
 	}
 
 	for u := range userResponse.User {
 
 		if userResponse.User[u] != nil {
 
-			log.DebugLog.Printf("user %s found", username)
+			log.DebugLog.Printf("user %s found", username[u])
+			userFound = append(userFound, username[u])
 			// log.DebugLog.Printf("unmarshalled resp user: %v", userResponse.User[u].Basics.Username)
 			// log.DebugLog.Printf("unmarshalled resp salt: %v", userResponse.User[u].Basics.Salt)
 			// log.DebugLog.Printf("unmarshalled resp track_version: %v", userResponse.User[u].Basics.TrackVersion)
 
 		} else {
 
-			msg := fmt.Sprintf("user %s not found", username)
+			msg := fmt.Sprintf("user %s not found", username[u])
 			log.DebugLog.Printf(msg)
-			var eunf ErrorUserNotFound
-			eunf.errmsg = msg
-			return eunf
+			userNotFound = append(userNotFound, username[u])
 		}
 	}
 
-	return nil
+	if len(userNotFound) == 0 {
+
+		return userFound, empty, nil
+	} else {
+
+		msg := fmt.Sprintf("user(s) %v not found", userNotFound)
+		var eunf ErrorUserNotFound
+		eunf.errmsg = msg
+		return userFound, userNotFound, eunf
+	}
 }
 
 // PubKeyLookup is used to lookup pubkeys using the keybase API
-func PubKeyLookup(username string) error {
+func PubKeyLookup(username []string) error {
 
 	log.DebugLog.Printf("lookup username's pubkey: %s", username)
 
@@ -208,7 +223,7 @@ func PubKeyLookup(username string) error {
 }
 
 // lookupPubKey uses the keybase API to lookup the given user's pubkey
-func lookupPubKey(username string) error {
+func lookupPubKey(username []string) error {
 
 	var pubKeyResponse struct {
 		Status *Status `json:"status"`

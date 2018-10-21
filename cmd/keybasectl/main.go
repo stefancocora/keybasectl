@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	stdlog "log"
 	"os"
+	"strings"
 
 	"github.com/stefancocora/keybasectl/cmd/keybasectl/keybase"
 	log "github.com/stefancocora/keybasectl/internal/log"
@@ -19,19 +20,19 @@ var debug bool
 // userFlag is the struct that get populated when the --auth cli flag is provided
 type userFlag struct {
 	set   bool
-	value string
+	value []string
 }
 
 func (us *userFlag) Set(val string) error {
 
-	us.value = val
+	us.value = strings.Split(val, ",")
 	us.set = true
 	return nil
 }
 
 func (us *userFlag) String() string {
 
-	return us.value
+	return fmt.Sprintf("%v", us.value)
 }
 
 var usfL userFlag
@@ -78,6 +79,10 @@ func init() {
 func main() {
 
 	var exitVal = 0
+	var errl, errpkl error
+	var kbFl keybase.DebugFlag
+	var uf []string  // captures the users found
+	var unf []string // captures the users not found
 
 	if !flag.Parsed() {
 
@@ -108,32 +113,39 @@ func main() {
 		log.ErrorLog.Printf("required flag or environment variable not set! flag: %s, environmentVariable: %v", usName, usEnv)
 		fmt.Fprintf(os.Stdout, "required flag or environment variable not set! flag: \"%s\", environmentVariable: \"%v\"\n", usName, usEnv)
 		exitVal++
+		goto exitAll
 	}
 
-	kbFl := new(keybase.DebugFlag)
+	log.DebugLog.Printf("--user flag arguments: %#v", flag.Args())
+
 	kbFl.NewDebugFlag(debug)
 	log.DebugLog.Printf("current setting for the debug flag inside the keybase pkg: %v", kbFl.DebugSetting())
 
 	// step: lookup user against keybase
-	errl := keybase.UserLookup(usfL.value)
+	uf, unf, errl = keybase.UserLookup(usfL.value)
 	if errl != nil {
 
 		exitVal++
 		if _, ok := errl.(keybase.ErrorUserNotFound); ok {
 
-			fmt.Fprintf(os.Stdout, "error during keybase user lookup: %s\n", errl.Error())
+			if len(uf) > 0 {
+				fmt.Fprintf(os.Stdout, "user(s): %v found during keybase lookup\n", uf)
+			}
+			fmt.Fprintf(os.Stdout, "user(s): %v not found during keybase lookup\n", unf)
 			log.ErrorLog.Printf("error during keybase user lookup: %s", errl.Error())
+			goto exitAll
 		} else {
 
 			fmt.Fprintf(os.Stdout, "error : %s\n", errl.Error())
 			log.ErrorLog.Printf("error : %s", errl.Error())
+			goto exitAll
 		}
 	} else {
-		fmt.Fprintf(os.Stdout, "user: %s found\n", usfL.value)
+		fmt.Fprintf(os.Stdout, "user(s): %v found during keybase lookup\n", uf)
 	}
 
 	// step: lookup user's pubkey against keybase
-	errpkl := keybase.PubKeyLookup(usfL.value)
+	errpkl = keybase.PubKeyLookup(usfL.value)
 	if errpkl != nil {
 
 		exitVal++
@@ -151,11 +163,14 @@ func main() {
 
 	}
 
-	log.InfoLog.Println("stopping engines, we're done")
-
+exitAll:
 	if exitVal > 0 {
 
+		log.InfoLog.Println("stopping engines, we're done")
 		os.Exit(1)
+	} else {
+
+		log.InfoLog.Println("stopping engines, we're done")
 	}
 
 }
